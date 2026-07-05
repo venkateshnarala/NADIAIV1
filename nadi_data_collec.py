@@ -16,17 +16,25 @@ import pandas as pd
 import os
 
 # ---------------------------------------------------------------------------
-# CONFIG - EDIT THIS PATH IF YOUR DATA FOLDER IS ELSEWHERE
+# CONFIG
 # ---------------------------------------------------------------------------
-# By default this points to your DATA folder at C:\Documents\NADIAI\DATA.
-# If you move the project or the data, update DATA_DIR below, e.g.:
-#   DATA_DIR = r"C:\Documents\NADIAI\DATA"
-DATA_DIR = r"C:\Documents\NADIAI\DATA"
+# Automatically locate the project's DATA folder.
+# This works on your local machine, GitHub, and Streamlit Cloud without
+# requiring any path changes.
+# ---------------------------------------------------------------------------
 
+# Directory containing this Python file
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# DATA folder
+DATA_DIR = os.path.join(BASE_DIR, "DATA")
+
+# Data files
 NAME_CSV = os.path.join(DATA_DIR, "camels_ind_name.csv")
 LAND_CSV = os.path.join(DATA_DIR, "camels_ind_land.csv")
 TOPO_CSV = os.path.join(DATA_DIR, "camels_ind_topo.csv")
 FLOW_CSV = os.path.join(DATA_DIR, "streamflow_observed.csv")
+
 
 MIN_YEAR_AVAILABILITY_PCT = 50.0   # a year is "usable" if >=50% of days have data
 MIN_YEARS_REQUIRED = 10            # minimum usable years needed to run full analysis
