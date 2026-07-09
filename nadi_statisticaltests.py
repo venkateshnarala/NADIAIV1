@@ -95,37 +95,37 @@ def mann_kendall_test(ams_values, alpha=0.05):
 # ---------------------------------------------------------------------------
 MANN_KENDALL_DESCRIPTION = {
     "title": "Mann-Kendall Trend Test",
+
     "definition": (
-        "The Mann-Kendall (MK) Test is a non-parametric statistical test "
-        "used to determine whether a time series shows a consistent "
-        "increasing or decreasing trend over time. Since it is based on the "
-        "relative order of observations rather than their actual values, it "
-        "does not require the data to follow any specific probability "
-        "distribution. To quantify the magnitude of the detected trend, the "
-        "Sen's Slope Estimator is used, which provides a robust estimate of "
-        "the average rate of change per year."
+        "The Mann-Kendall (MK) Test is a non-parametric statistical test used "
+        "to identify whether a time series exhibits a monotonic increasing or "
+        "decreasing trend over time. Since the test is based on the relative "
+        "ranking of observations rather than their actual values, it does not "
+        "require the data to follow any specific probability distribution. "
+        "The magnitude of the detected trend is estimated using Sen's Slope, "
+        "which provides a robust estimate of the average annual rate of change."
     ),
+
     "purpose": (
-        "The test is commonly performed at a 5% significance level "
-        "(alpha = 0.05). A p-value less than 0.05 indicates a statistically "
-        "significant trend. The Kendall's Tau (tau) value describes the "
-        "direction and strength of the trend, ranging from -1 (strong "
-        "decreasing trend) to +1 (strong increasing trend), while Sen's "
-        "slope indicates the estimated rate of change in discharge per year."
+        "The Mann-Kendall Test is widely used in hydrology to detect long-term "
+        "trends in streamflow and other hydro-meteorological variables. It "
+        "helps determine whether observed changes are statistically significant "
+        "or are likely due to natural variability."
     ),
-    "formula_lines": [
-        "S  =  sum ( i = 1 to n-1 )  sum ( j = i+1 to n )   sgn(x_j - x_i)",
-        "sgn(x_j - x_i) =  +1  if x_j > x_i  ;   0  if x_j = x_i  ;   -1  if x_j < x_i",
-        "Z  =  (S - 1) / sqrt(Var(S))   if S > 0",
-        "Z  =  0                        if S = 0",
-        "Z  =  (S + 1) / sqrt(Var(S))   if S < 0",
-        "Sen's slope (beta)  =  median { (x_j - x_i) / (j - i) }   for all i < j",
-    ],
-    "standard_values": "Significance level alpha = 0.05 (95% confidence)",
+
+    "standard_values": (
+        "Significance Level (α): 0.05 (95% Confidence Level)"
+    ),
+
     "parameter_explanation": (
-        "Tau: Kendall's rank correlation coefficient (-1 to +1); "
-        "p-value: probability the observed trend arose by chance (trend deemed "
-        "significant if p < alpha); "
-        "Sen's slope: robust estimate of the rate of change per year (units/year)."
+        "Tau (τ): Indicates the direction and strength of the trend, ranging "
+        "from -1 (strong decreasing trend) to +1 (strong increasing trend). "
+        "A value close to zero indicates little or no monotonic trend. "
+        "P-value: Represents the probability that the observed trend occurred "
+        "by chance. A p-value less than 0.05 indicates a statistically "
+        "significant trend at the 95% confidence level. "
+        "Sen's Slope: Estimates the median rate of change of the variable per "
+        "year, where a positive value indicates an increasing trend and a "
+        "negative value indicates a decreasing trend."
     ),
 }
