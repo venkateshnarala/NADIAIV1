@@ -21,7 +21,8 @@ import os
 # By default this points to your DATA folder at C:\Documents\NADIAI\DATA.
 # If you move the project or the data, update DATA_DIR below, e.g.:
 #   DATA_DIR = r"C:\Documents\NADIAI\DATA"
-DATA_DIR = r"C:\Documents\NADIAI\DATA"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "DATA")
 
 NAME_CSV = os.path.join(DATA_DIR, "camels_ind_name.csv")
 LAND_CSV = os.path.join(DATA_DIR, "camels_ind_land.csv")
