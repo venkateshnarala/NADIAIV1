@@ -31,7 +31,9 @@ import nadi_distfit as df
 
 # Path to the NADI AI logo used on the title page and thank-you page.
 # If the file is missing, the report still builds fine (logo is skipped).
-LOGO_PATH = r"C:\Documents\NADIAI\NADI AI LOGO.jpg"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+LOGO_PATH = os.path.join(BASE_DIR, "NADI AI LOGO.jpg")
 
 # ---------------------------------------------------------------------------
 # THEME
