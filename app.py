@@ -40,11 +40,13 @@ LIGHT_BLUE = "#3D85C6"
 ACCENT_BLUE = "#9FC5E8"
 DEEP_BLUE = "#073763"
 
-LOGO_PATH = r"C:\Documents\NADIAI\NADI AI LOGO.jpg"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Same data files used by the reference map script
-NAME_FILE = r"C:\Documents\NADIAI\DATA\camels_ind_name.csv"
-TOPO_FILE = r"C:\Documents\NADIAI\DATA\camels_ind_topo.csv"
+LOGO_PATH = os.path.join(BASE_DIR, "NADI AI LOGO.jpg")
+
+# Data files
+NAME_FILE = os.path.join(BASE_DIR, "DATA", "camels_ind_name.csv")
+TOPO_FILE = os.path.join(BASE_DIR, "DATA", "camels_ind_topo.csv")
 
 st.markdown(
     f"""
