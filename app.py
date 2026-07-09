@@ -4,12 +4,19 @@ NADI AI - Streamlit Application
 ---------------------------------
 Run with:  streamlit run app.py
 
-Simple, blue-themed UI: pick a station from the dropdown, view its basic
-details and key plots inline, and download a full technical PDF report.
+Blue-themed, AI-assistant style UI: pick a station from an interactive map,
+view its basic details and the annual data availability plot, and run the
+full hydrological analysis to download a technical PDF report.
 """
 
 import os
+import base64
+
+import pandas as pd
 import streamlit as st
+import folium
+from folium.plugins import MarkerCluster
+from streamlit_folium import st_folium
 
 import nadi_data_collec as dc
 import nadi_quality as ql
@@ -30,33 +37,81 @@ st.set_page_config(
 
 PRIMARY_BLUE = "#0B5394"
 LIGHT_BLUE = "#3D85C6"
+ACCENT_BLUE = "#9FC5E8"
+DEEP_BLUE = "#073763"
+
+LOGO_PATH = r"C:\Documents\NADIAI\NADI AI LOGO.jpg"
+
+# Same data files used by the reference map script
+NAME_FILE = r"C:\Documents\NADIAI\DATA\camels_ind_name.csv"
+TOPO_FILE = r"C:\Documents\NADIAI\DATA\camels_ind_topo.csv"
 
 st.markdown(
     f"""
     <style>
     .main {{ background-color: #F5F9FD; }}
     h1, h2, h3 {{ color: {PRIMARY_BLUE}; }}
+
     div.stButton > button {{
-        background-color: {PRIMARY_BLUE};
+        background: linear-gradient(90deg, {PRIMARY_BLUE}, {LIGHT_BLUE});
         color: white;
-        border-radius: 6px;
+        border-radius: 8px;
         border: none;
+        font-weight: 600;
+        padding: 0.6rem 1.2rem;
     }}
     div.stButton > button:hover {{
-        background-color: {LIGHT_BLUE};
+        background: linear-gradient(90deg, {LIGHT_BLUE}, {ACCENT_BLUE});
         color: white;
     }}
+
     .nadi-header {{
-        background-color: {PRIMARY_BLUE};
-        padding: 18px 24px;
-        border-radius: 8px;
+        background: linear-gradient(120deg, {DEEP_BLUE}, {PRIMARY_BLUE} 60%, {LIGHT_BLUE});
+        padding: 24px 30px;
+        border-radius: 12px;
         color: white;
-        margin-bottom: 18px;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
     }}
+    .nadi-header-text {{
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }}
+    .nadi-badge {{
+        display: inline-block;
+        background-color: rgba(255,255,255,0.15);
+        border-radius: 20px;
+        padding: 3px 12px;
+        font-size: 0.75rem;
+        margin-right: 6px;
+        margin-top: 6px;
+    }}
+
+    .nadi-card {{
+        background-color: white;
+        border: 1px solid {ACCENT_BLUE};
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 10px;
+    }}
+
+    .nadi-selected-banner {{
+        background-color: {ACCENT_BLUE};
+        color: {DEEP_BLUE};
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-weight: 600;
+        margin: 10px 0 18px 0;
+    }}
+
     .nadi-footer {{
         color: #888888;
         font-size: 0.8rem;
         margin-top: 30px;
+        text-align: center;
     }}
     </style>
     """,
@@ -77,28 +132,51 @@ def cached_station_data(gauge_id):
     return dc.get_station_data(gauge_id)
 
 
+@st.cache_data(show_spinner=False)
+def load_map_data():
+    """Load station names merged with topo (lat/lon + catchment attributes)
+    for plotting on the map, exactly like the working reference script."""
+    names = pd.read_csv(NAME_FILE)
+    topo = pd.read_csv(TOPO_FILE)
+    df = pd.merge(names, topo, on="gauge_id", how="inner")
+    df = df.dropna(subset=["cwc_lat", "cwc_lon"])
+    return df
+
+
+def get_base64_img(img_path):
+    with open(img_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
+
 # ---------------------------------------------------------------------------
 # HEADER
 # ---------------------------------------------------------------------------
+if os.path.isfile(LOGO_PATH):
+    try:
+        img_base64 = get_base64_img(LOGO_PATH)
+        logo_html = f'<img src="data:image/jpeg;base64,{img_base64}" style="width:90px; height:auto; border-radius:8px; border: 1px solid rgba(255,255,255,0.2);">'
+    except Exception:
+        logo_html = f"<div style='font-size:3.2rem;'>\U0001F4A7</div>"
+else:
+    logo_html = f"<div style='font-size:3.2rem;'>\U0001F4A7</div>"
+
 st.markdown(
-    """
+    f"""
     <div class="nadi-header">
-        <h1 style="color:white; margin-bottom:0;">NADI AI</h1>
-        <p style="margin-top:4px; margin-bottom:0;">
-            AI-Assisted Hydrological Frequency Analysis for CAMELS-IND Stations
-        </p>
+        {logo_html}
+        <div class="nadi-header-text">
+            <h1 style="color:white; margin:0; padding:0; font-size:2.4rem; line-height:1.2; font-weight:700;">NADI AI</h1>
+            <p style="color:rgba(255,255,255,0.9); margin:4px 0 0 0; padding:0; font-size:1.1rem;">
+                Your AI Assistant for Hydrological Analysis
+            </p>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-st.info(
-    "This tool is currently in a developing phase. Thank you for using NADI AI - "
-    "your feedback helps us build something better for the hydrology community."
-)
-
 # ---------------------------------------------------------------------------
-# STATION SELECTION
+# LOAD STATION LIST (for gauge_id matching) + MAP DATA (for plotting)
 # ---------------------------------------------------------------------------
 try:
     name_df = load_stations()
@@ -107,22 +185,155 @@ except Exception as e:
              f"camels_ind_name.csv exist relative to app.py.\n\nError: {e}")
     st.stop()
 
-station_names = sorted(name_df["cwc_site_name"].dropna().unique().tolist())
+try:
+    map_df = load_map_data()
+except Exception as e:
+    st.error(f"Could not load map data. Please check that camels_ind_name.csv and "
+             f"camels_ind_topo.csv exist at the configured paths.\n\nError: {e}")
+    st.stop()
 
-selected_station = st.selectbox(
-    "Select a gauging station",
-    options=station_names,
-    index=None,
-    placeholder="Type or choose a station name...",
+# ---------------------------------------------------------------------------
+# STATION SELECTION VIA MAP
+# ---------------------------------------------------------------------------
+if "selected_station" not in st.session_state:
+    st.session_state.selected_station = None
+if "search_location" not in st.session_state:
+    st.session_state.search_location = None
+
+header_col, lat_col, lon_col, locate_col, clear_col = st.columns([2.4, 1, 1, 0.7, 0.7])
+
+with header_col:
+    st.markdown("### \U0001F5FA\uFE0F Select a gauging station")
+
+with lat_col:
+    search_lat = st.number_input(
+        "Latitude", min_value=-90.0, max_value=90.0, value=22.5,
+        step=0.0001, format="%.4f", key="search_lat_input",
+    )
+
+with lon_col:
+    search_lon = st.number_input(
+        "Longitude", min_value=-180.0, max_value=180.0, value=79.0,
+        step=0.0001, format="%.4f", key="search_lon_input",
+    )
+
+with locate_col:
+    st.markdown("<div style='height:1.7rem;'></div>", unsafe_allow_html=True)
+    locate_clicked = st.button("\U0001F4CD Locate")
+
+with clear_col:
+    st.markdown("<div style='height:1.7rem;'></div>", unsafe_allow_html=True)
+    clear_clicked = st.button("\u2716\uFE0F Clear")
+
+if locate_clicked:
+    st.session_state.search_location = (float(search_lat), float(search_lon))
+    st.rerun()
+
+if clear_clicked:
+    st.session_state.search_location = None
+    st.rerun()
+
+st.write("Select a station by zooming in or entering its coordinates")
+
+if st.session_state.search_location:
+    india_center = list(st.session_state.search_location)
+    map_zoom_start = 10
+else:
+    india_center = [22.5, 79.0]
+    map_zoom_start = 5
+
+m = folium.Map(
+    location=india_center,
+    zoom_start=map_zoom_start,
+    tiles="OpenStreetMap",
+    control_scale=True,
 )
 
+marker_cluster = MarkerCluster(
+    name="Stations",
+    overlay=True,
+    control=False,
+    disableClusteringAtZoom=10,
+    spiderfyOnMaxZoom=True,
+    showCoverageOnHover=False,
+    zoomToBoundsOnClick=True,
+)
+marker_cluster.add_to(m)
+
+for _, row in map_df.iterrows():
+    is_selected = st.session_state.selected_station == row["cwc_site_name"]
+
+    popup_html = f"""
+    <div style="width:320px;font-size:13px">
+    <h4 style="margin-bottom:5px;">{row['cwc_site_name']}</h4>
+    <b>Gauge ID:</b> {row['gauge_id']}<br><br>
+    <table style="width:100%;border-collapse:collapse;">
+        <tr><td><b>Elevation Mean</b></td><td>{row['elev_mean']}</td></tr>
+        <tr><td><b>Elevation Median</b></td><td>{row['elev_median']}</td></tr>
+        <tr><td><b>Elevation Min</b></td><td>{row['elev_min']}</td></tr>
+        <tr><td><b>Elevation Max</b></td><td>{row['elev_max']}</td></tr>
+        <tr><td><b>Slope Mean</b></td><td>{row['slope_mean']}</td></tr>
+        <tr><td><b>Slope Median</b></td><td>{row['slope_median']}</td></tr>
+        <tr><td><b>Slope Min</b></td><td>{row['slope_min']}</td></tr>
+        <tr><td><b>Slope Max</b></td><td>{row['slope_max']}</td></tr>
+        <tr><td><b>CWC Area</b></td><td>{row['cwc_area']}</td></tr>
+        <tr><td><b>GHI Area</b></td><td>{row['ghi_area']}</td></tr>
+        <tr><td><b>Gauge Elevation</b></td><td>{row['gauge_elevation']}</td></tr>
+        <tr><td><b>DPSBAR</b></td><td>{row['dpsbar']}</td></tr>
+    </table>
+    </div>
+    """
+
+    folium.Marker(
+        location=[row["cwc_lat"], row["cwc_lon"]],
+        tooltip=row["cwc_site_name"],
+        popup=folium.Popup(popup_html, max_width=350),
+        icon=folium.Icon(
+            color="red" if is_selected else "blue",
+            icon="tint",
+            prefix="fa",
+        ),
+    ).add_to(marker_cluster)
+
+if st.session_state.search_location:
+    _s_lat, _s_lon = st.session_state.search_location
+    folium.Marker(
+        location=[_s_lat, _s_lon],
+        tooltip="Searched location",
+        popup=folium.Popup(
+            f"<b>Searched Location</b><br>Latitude: {_s_lat:.4f}<br>Longitude: {_s_lon:.4f}",
+            max_width=250,
+        ),
+        icon=folium.Icon(color="red", icon="map-pin", prefix="fa"),
+    ).add_to(m)
+
+map_output = st_folium(
+    m,
+    width=None,
+    height=600,
+    returned_objects=["last_object_clicked_tooltip"],
+    key="station_map",
+)
+
+clicked_tooltip = map_output.get("last_object_clicked_tooltip") if map_output else None
+if clicked_tooltip and clicked_tooltip != st.session_state.selected_station:
+    st.session_state.selected_station = clicked_tooltip
+    st.rerun()
+
+selected_station = st.session_state.selected_station
+
 if not selected_station:
-    st.markdown("### Welcome")
+    st.markdown("### \U0001F44B Welcome")
     st.write(
-        "Select a station from the dropdown above to view its details, streamflow "
-        "overview, and generate a full technical flood-frequency analysis report."
+        "Click a station marker on the map above to select a gauged station and run "
+        "detailed hydrological analysis."
     )
     st.stop()
+
+st.markdown(
+    f'<div class="nadi-selected-banner">\U0001F4CD Selected station: {selected_station}</div>',
+    unsafe_allow_html=True,
+)
 
 # resolve gauge_id from selected station name (internal only, not displayed)
 matched_row = name_df.loc[name_df["cwc_site_name"] == selected_station]
@@ -144,7 +355,7 @@ except Exception as e:
 meta = station_data["meta"]
 
 st.markdown("---")
-st.markdown(f"## {meta.get('cwc_site_name', 'N/A')}")
+st.markdown(f"## \U0001F30A {meta.get('cwc_site_name', 'N/A')}")
 
 info_col1, info_col2, info_col3 = st.columns(3)
 with info_col1:
@@ -162,124 +373,68 @@ sufficient = station_data["sufficient_data"]
 usable_years = station_data["usable_years"]
 
 st.markdown(
-    f"**Usable years (>=50% data availability):** {len(usable_years)} year(s) found."
+    f"**Valid years for analysis (>=50% data availability):** {len(usable_years)} year(s) found."
 )
 
 if not sufficient:
     st.error(
-        "Sufficient data is not available for this station (minimum 10 usable years "
+        "Sufficient data is not available for this station (minimum 10 valid years "
         "required for full statistical analysis). Only a data overview is shown below."
     )
 
 # ---------------------------------------------------------------------------
-# TABS FOR RESULTS PREVIEW
+# DATA OVERVIEW (home page - annual data availability only)
 # ---------------------------------------------------------------------------
-tab_labels = ["Data Overview"]
-if sufficient:
-    tab_labels += ["Quality Checks", "Trend Analysis", "Distribution Fitting"]
+st.markdown("### \U0001F4CA Data Overview")
+if not station_data["yearly_avail"].empty:
+    st.pyplot(pl.plot_yearly_availability(station_data["yearly_avail"]))
+else:
+    st.write("No streamflow data available for this station.")
 
-tabs = st.tabs(tab_labels)
+# ---------------------------------------------------------------------------
+# DOWNLOAD DISCHARGE DATA (CSV)
+# ---------------------------------------------------------------------------
+st.markdown("---")
 
-# ---- Tab 1: Data overview ----
-with tabs[0]:
-    if not station_data["yearly_avail"].empty:
-        st.pyplot(pl.plot_yearly_availability(station_data["yearly_avail"]))
-    if not station_data["daily_usable"].empty:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.pyplot(pl.plot_monthly_mean_flow(station_data["monthly_mean_flow"]))
-        with c2:
-            st.pyplot(pl.plot_annual_mean_flow(station_data["annual_mean_flow"]))
-        st.pyplot(pl.plot_fdc(station_data["fdc"]))
-    if not station_data["ams"].empty:
-        st.pyplot(pl.plot_ams_series(station_data["ams"]))
-        ams_stats = station_data["basic_stats"]["ams"]
-        st.markdown("**Annual Maximum Series - Basic Statistics**")
-        st.dataframe(
-            {
-                "Statistic": ["n (years)", "Mean", "Max", "Min", "Std Dev", "CV", "Skewness"],
-                "Value": [
-                    ams_stats["n"], round(ams_stats["mean"], 2), round(ams_stats["max"], 2),
-                    round(ams_stats["min"], 2), round(ams_stats["std"], 2),
-                    round(ams_stats["cv"], 3) if ams_stats["cv"] == ams_stats["cv"] else "N/A",
-                    round(ams_stats["skew"], 3) if ams_stats["skew"] == ams_stats["skew"] else "N/A",
-                ],
-            },
-            hide_index=True,
+daily_df = station_data.get("daily")
+
+if daily_df is not None and not daily_df.empty:
+    csv_export_df = daily_df[["date", "year", "month", "day", "flow"]].copy()
+    csv_export_df["date"] = csv_export_df["date"].dt.strftime("%Y-%m-%d")
+    csv_bytes = csv_export_df.to_csv(index=False).encode("utf-8")
+
+    safe_csv_name = "".join(
+        c if c.isalnum() else "_" for c in str(meta.get("cwc_site_name", "station"))
+    )
+
+    col1, col2 = st.columns([4, 2])
+
+    with col1:
+        st.markdown("#### 📄 Download Discharge Data")
+
+    with col2:
+        st.download_button(
+            label=f" {safe_csv_name}.csv",
+            data=csv_bytes,
+            file_name=f"NADI_AI_Discharge_{safe_csv_name}.csv",
+            mime="text/csv",
+            use_container_width=True,
         )
-    else:
-        st.write("No usable streamflow data available for this station.")
-
-# ---- Remaining tabs only if sufficient data ----
-if sufficient:
-    ams = station_data["ams"]
-    ams_vals = ams["ann_max"].values
-    years = ams["year"].values
-
-    with tabs[1]:
-        st.markdown("### Outlier Detection")
-        iqr_res = ql.iqr_outlier_test(ams_vals)
-        st.pyplot(pl.plot_outliers(ams, iqr_res["low_outliers"], iqr_res["high_outliers"], "IQR Test"))
-        st.write(f"High outliers: {len(iqr_res['high_outliers'])} | Low outliers: {len(iqr_res['low_outliers'])}")
-
-        gb_res = ql.grubbs_beck_test(ams_vals)
-        st.write(f"**Grubbs-Beck:** High outliers: {len(gb_res['high_outliers'])} | "
-                 f"Low outliers: {len(gb_res['low_outliers'])} (critical K = {gb_res['K_critical']:.3f})")
-
-        st.markdown("### Change-Point Detection")
-        pt_res = ql.pettitt_test(ams_vals, years)
-        st.pyplot(pl.plot_pettitt_statistic(years, pt_res.get("U_series", []), pt_res["change_year"]))
-        st.pyplot(pl.plot_pettitt_ams(ams, pt_res["change_year"]))
-        st.write(f"Pettitt test: change year = {pt_res['change_year']}, "
-                 f"p-value = {pt_res['p_value']:.4f}, significant = {pt_res['significant']}")
-
-        cs_res = ql.cusum_test(ams_vals, years)
-        st.pyplot(pl.plot_cusum(years, cs_res["cusum"], cs_res["change_year"]))
-
-    with tabs[2]:
-        mk_res = st_tests.mann_kendall_test(ams_vals)
-        st.pyplot(pl.plot_mann_kendall(ams, mk_res["slope"], mk_res["intercept"], mk_res["trend"]))
-        st.write(
-            f"**Trend:** {mk_res['trend'].capitalize()} | **p-value:** {mk_res['p']:.4f} | "
-            f"**Sen's slope:** {mk_res['slope']:.3f} units/year | "
-            f"**Significant (alpha=0.05):** {'Yes' if mk_res['h'] else 'No'}"
-        )
-
-    with tabs[3]:
-        results = dfit.fit_all_distributions(ams_vals)
-        if results.empty:
-            st.write("Distribution fitting could not be completed for this station.")
-        else:
-            st.markdown("**Top 5 Ranked Distribution / Method Combinations**")
-            top5 = results.head(5).reset_index(drop=True)
-            display_df = top5[["overall_rank", "distribution", "method", "ks_stat",
-                                "chi2_stat", "ad_stat", "aic", "rmse"]].copy()
-            display_df.columns = ["Rank", "Distribution", "Method", "KS", "Chi2", "AD", "AIC", "RMSE"]
-            st.dataframe(display_df, hide_index=True)
-
-            sorted_vals, plotting_pos = dfit.get_plotting_positions(ams_vals)
-            curves = dfit.build_distribution_curves(top5, ams_vals)
-            st.pyplot(pl.plot_top_distributions(sorted_vals, plotting_pos, curves))
-
-            qtable = dfit.estimate_quantiles(top5)
-            labels = [f"{r['distribution']} ({r['method']})" for _, r in top5.iterrows()]
-            st.markdown("**Design Discharge Quantiles (m3/s)**")
-            st.dataframe(qtable.round(1), hide_index=True)
-            st.pyplot(pl.plot_quantile_vs_return_period(qtable, labels))
 
 # ---------------------------------------------------------------------------
 # REPORT GENERATION
 # ---------------------------------------------------------------------------
 st.markdown("---")
-st.markdown("## Download Full Technical Report")
+st.markdown("## \U0001F916 Run Hydrological Analysis")
 st.write(
-    "Generate a complete PDF report including station information, data overview, "
-    "outlier and change-point detection, trend analysis, distribution fitting, "
-    "goodness-of-fit tests, and design flood magnitudes."
+    "NADI AI will run the full analysis pipeline - station information, data "
+    "overview, outlier and change-point detection, trend analysis, distribution "
+    "fitting, goodness-of-fit tests, and design flood magnitudes - and prepare a "
+    "downloadable technical PDF report."
 )
 
-if st.button("Generate PDF Report", type="primary"):
-    with st.spinner("Generating report... this may take up to a minute."):
+if st.button("\U0001F30A Run Hydrological Analysis", type="primary"):
+    with st.spinner("Running analysis and generating report... this may take up to a minute."):
         try:
             os.makedirs("generated_reports", exist_ok=True)
             safe_name = "".join(c if c.isalnum() else "_" for c in str(meta.get("cwc_site_name", "station")))
@@ -289,9 +444,9 @@ if st.button("Generate PDF Report", type="primary"):
             with open(output_path, "rb") as f:
                 pdf_bytes = f.read()
 
-            st.success("Report generated successfully!")
+            st.success("Analysis complete - report generated successfully!")
             st.download_button(
-                label="Download Report (PDF)",
+                label="\U00002B07 Download Report (PDF)",
                 data=pdf_bytes,
                 file_name=f"NADI_AI_Report_{safe_name}.pdf",
                 mime="application/pdf",
@@ -306,9 +461,7 @@ if st.button("Generate PDF Report", type="primary"):
 st.markdown(
     """
     <div class="nadi-footer">
-        NADI AI - developed by Narala Venkatesh, M.Tech Water Resources Engineering, NIT Warangal.<br>
-        This tool is in a developing phase. For suggestions, please email
-        <b>venkateshnarala387@gmail.com</b>.<br>
+        💧 NADI AI - developed by Narala Venkatesh, M.Tech Water Resources Engineering, NIT Warangal.<br>
         Data source: CAMELS-IND (Mangukiya et al., 2025, Earth Syst. Sci. Data).
     </div>
     """,
