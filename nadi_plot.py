@@ -78,7 +78,7 @@ def plot_annual_mean_flow(annual_mean_flow):
             marker="o", markersize=3, color=PRIMARY_BLUE, linewidth=1.2)
     ax.set_xlabel("Year")
     ax.set_ylabel("Mean annual flow (m3/s)")
-    ax.set_title("Mean Annual Flow (usable years)")
+    ax.set_title("Mean Annual Flow (valid years)")
     _style_axes(ax)
     fig.tight_layout()
     return fig
@@ -99,6 +99,43 @@ def plot_fdc(fdc):
     _style_axes(ax)
     fig.tight_layout()
     return fig
+
+
+
+def plot_fdc_log(fdc):
+    """Flow Duration Curve - Discharge vs Exceedance Probability (Logarithmic Y-axis)."""
+    fig, ax = plt.subplots(figsize=(7.5, 5))
+
+    if fdc.empty:
+        ax.text(0.5, 0.5, "No data available", ha="center", va="center")
+        return fig
+
+    # Log scale cannot plot zero or negative values
+    fdc_log = fdc[fdc["flow"] > 0]
+
+    if fdc_log.empty:
+        ax.text(0.5, 0.5, "No positive flow values available", ha="center", va="center")
+        return fig
+
+    ax.plot(
+        fdc_log["exceedance_prob"],
+        fdc_log["flow"],
+        color=PRIMARY_BLUE,
+        linewidth=1.5,
+    )
+
+    ax.set_yscale("log")
+
+    ax.set_xlabel("Exceedance Probability (%)")
+    ax.set_ylabel("Discharge (m³/s) [Log Scale]")
+    ax.set_title("Flow Duration Curve (Logarithmic Y-axis)")
+    ax.set_xlim(0, 100)
+
+    _style_axes(ax)
+    fig.tight_layout()
+
+    return fig
+
 
 
 def plot_ams_series(ams):
@@ -265,25 +302,58 @@ def plot_top_distributions(ams_sorted, plotting_positions, dist_curves, top_n=5)
     return fig
 
 
-def plot_quantile_vs_return_period(quantile_table, dist_labels):
+def plot_quantile_vs_return_period(quantile_table, dist_labels, max_return_period=500):
     """
     Plot magnitude vs return period (normal/linear scale) for the top distributions.
-    quantile_table: DataFrame with 'return_period' column and one column per dist_label
+
+    quantile_table : DataFrame containing 'return_period' and one column per
+                     selected distribution.
+
+    Only return periods up to max_return_period (default = 500 years) are
+    plotted for improved readability.
     """
+
     fig, ax = plt.subplots(figsize=(8.5, 5.5))
-    colors = [PRIMARY_BLUE, "#38761D", "#E69138", "#674EA7", DANGER_RED]
+
+    # Plot only return periods up to the specified maximum
+    qtable_plot = quantile_table[
+        quantile_table["return_period"] <= max_return_period
+    ]
+
+    colors = [
+        PRIMARY_BLUE,
+        "#38761D",
+        "#E69138",
+        "#674EA7",
+        DANGER_RED,
+    ]
+
     for i, label in enumerate(dist_labels):
-        if label in quantile_table.columns:
-            ax.plot(quantile_table["return_period"], quantile_table[label],
-                    marker="o", markersize=4, linewidth=1.4,
-                    color=colors[i % len(colors)], label=label)
-    ax.set_xlabel("Return period (years)")
-    ax.set_ylabel("Design discharge (m3/s)")
-    ax.set_title("Design Flood Magnitude vs. Return Period")
-    ax.set_xticks(quantile_table["return_period"])
+        if label in qtable_plot.columns:
+            ax.plot(
+                qtable_plot["return_period"],
+                qtable_plot[label],
+                marker="o",
+                markersize=4,
+                linewidth=1.4,
+                color=colors[i % len(colors)],
+                label=label,
+            )
+
+    ax.set_xlabel("Return Period (years)")
+    ax.set_ylabel("Design Discharge (m³/s)")
+    ax.set_title(
+        f"Design Flood Magnitude vs. Return Period (up to {max_return_period} years)"
+    )
+
+    ax.set_xticks(qtable_plot["return_period"])
+
     ax.legend(fontsize=8)
+
     _style_axes(ax)
+
     fig.tight_layout()
+
     return fig
 
 
