@@ -29,11 +29,9 @@ import nadi_quality as ql
 import nadi_statisticaltests as st
 import nadi_distfit as df
 
-# Directory containing this Python file
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Logo file
-LOGO_PATH = os.path.join(BASE_DIR, "NADI AI LOGO.jpg")
+# Path to the NADI AI logo used on the title page and thank-you page.
+# If the file is missing, the report still builds fine (logo is skipped).
+LOGO_PATH = r"C:\Documents\NADIAI\NADI AI LOGO.jpg"
 
 # ---------------------------------------------------------------------------
 # THEME
@@ -325,7 +323,7 @@ def _build_title_page(station_data):
 
     flow.append(Paragraph("NADI AI", styles["NadiTitle"]))
     flow.append(Paragraph(
-        "AI-Assisted Hydrological Analysis Report for Streamflow Frequency "
+        "AI-Assisted Hydrological Analysis Report for Streamflow analysis "
         "and Design Flood Estimation", styles["NadiSubtitle"]))
     flow.append(Spacer(1, 1.2 * cm))
 
@@ -347,7 +345,7 @@ def _build_title_page(station_data):
 
     flow.append(Spacer(1, 1.4 * cm))
     flow.append(Paragraph(
-        "This tool uses catchment attribute and streamflow data from the "
+        "This tool uses catchment attributes and streamflow data from the "
         "CAMELS-IND (Catchment Attributes and MEteorology for Large-sample "
         "Studies - India) dataset.", styles["BodyJustify"]))
     flow.append(Paragraph(
@@ -365,8 +363,11 @@ def _build_title_page(station_data):
         "engineering, planning, or design decision.", styles["WarningNote"]))
     flow.append(Spacer(1, 0.6 * cm))
     flow.append(Paragraph(
-        "For suggestions, corrections, or feedback, please write to: "
-        "<b>venkateshnarala387@gmail.com</b>", styles["SmallNote"]))
+    "For suggestions, corrections, or feedback, please write to: "
+    "<b>venkateshnarala387@gmail.com</b><br/>"
+    "LinkedIn: "
+    "<b>www.linkedin.com/in/venkatesh-narala3</b>",
+    styles["SmallNote"]))
 
     return flow
 
@@ -414,7 +415,7 @@ def _build_station_info(station_data):
         ["Dominant Land Cover", str(land.get("dom_land_cover", "N/A")),
          "Dominant LC Fraction", _fmt(land.get("dom_land_cover_frac"), 3)],
         ["LAI Mean", _fmt(land.get("lai_mean"), 2),
-         "LAI Min / Max", f"{_fmt(land.get('lai_min'), 2)} / {_fmt(land.get('lai_max'), 2)}"],
+         "LAI Min , LAI Max", f"{_fmt(land.get('lai_min'), 2)} / {_fmt(land.get('lai_max'), 2)}"],
     ]
     flow.append(_std_table(topo_land_rows, col_widths=[4.2 * cm, 3.6 * cm, 4.2 * cm, 3.6 * cm]))
     flow.append(Spacer(1, 10))
@@ -473,8 +474,21 @@ def _build_overview(station_data, tmpdir):
         flow.append(Spacer(1, 8))
 
         flow.append(Paragraph("Flow Duration Curve (FDC)", styles["SubHeading"]))
-        flow.append(_fig_to_image(pl.plot_fdc(station_data["fdc"]), tmpdir, "fdc"))
+        flow.append(_fig_to_image(
+        pl.plot_fdc(station_data["fdc"]),
+        tmpdir,
+        "fdc"
+        ))
+        flow.append(Spacer(1, 6))
+
+        flow.append(Paragraph("Flow Duration Curve (Logarithmic Y-axis)", styles["SubHeading"]))
+        flow.append(_fig_to_image(
+        pl.plot_fdc_log(station_data["fdc"]),
+         tmpdir,
+        "fdc_log"
+        ))
         flow.append(Spacer(1, 8))
+        
 
     if not ams.empty:
         flow.append(Paragraph("Annual Maximum Series (AMS)", styles["SubHeading"]))
@@ -547,7 +561,7 @@ def _build_outlier_section(ams, ams_vals, tmpdir):
     flow.append(_std_table(gb_rows, col_widths=[7 * cm, 5 * cm]))
     if len(gb_res["high_outliers"]) > 0 or len(gb_res["low_outliers"]) > 0:
         flow.append(Paragraph(
-            "Note: The Grubbs-Beck test flagged one or more potential outliers. As per "
+            "Note: The Grubbs Beck test flagged one or more potential outliers. As per "
             "USGS Bulletin 17B/17C practice, please review these values manually before "
             "deciding whether to retain, adjust, or treat them as historical/censored data.",
             styles["WarningNote"]))
@@ -556,7 +570,7 @@ def _build_outlier_section(ams, ams_vals, tmpdir):
 
 
 def _build_changepoint_section(ams, ams_vals, years, tmpdir):
-    flow = [Paragraph("4. Change-Point Detection Tests", styles["SectionHeading"])]
+    flow = [Paragraph("4. Change Point Detection Tests", styles["SectionHeading"])]
 
     # --- Pettitt ---
     pt_res = ql.pettitt_test(ams_vals, years)
@@ -755,25 +769,19 @@ def _build_references_page():
         "sourced from the CAMELS-IND dataset.", styles["BodyJustify"]))
     flow.append(Spacer(1, 6))
     flow.append(Paragraph(
-        "Mangukiya, N. K., Kumar, K. B., Dey, P., Sharma, S., Bejagam, V., "
-        "Mujumdar, P. P., and Sharma, A.: CAMELS-IND: hydrometeorological time series and "
-        "catchment attributes for 228 catchments in Peninsular India, Earth Syst. Sci. Data, "
-        "17, 461-491, https://doi.org/10.5194/essd-17-461-2025, 2025.", styles["BodyJustify"]))
-    flow.append(Spacer(1, 6))
-    flow.append(Paragraph(
         "Mangukiya, N. K., Kumar, K. B., Dey, P., Sharma, S., Bejagam, V., Mujumdar, P. P., "
         "and Sharma, A.: CAMELS-INDIA: hydrometeorological time series and catchment "
         "attributes for 472 catchments in Peninsular India, Earth Syst. Sci. Data Discuss. "
         "[preprint], https://doi.org/10.5194/essd-2024-379, in review, 2024.", styles["BodyJustify"]))
     flow.append(Spacer(1, 12))
     flow.append(Paragraph(
-        "NADI AI is under active development, working toward more robust and complete "
+        "NADI AI is under active development, working towards more robust and complete "
         "hydrological analysis outcomes.", styles["BodyJustify"]))
     flow.append(Spacer(1, 8))
     flow.append(Paragraph(
-        "<b>Note:</b> This report is AI-generated and may contain errors or omissions. It has "
+        "<b>Note:</b> This report is AI-generated and may contain errors. It has "
         "been developed by an M.Tech student and should be independently verified before use "
-        "in any design or decision-making process. For suggestions or to report issues, "
+        "in any decision making process. For suggestions or to report issues, "
         "please contact venkateshnarala387@gmail.com.", styles["WarningNote"]))
     return flow
 
@@ -787,8 +795,8 @@ def _build_thankyou_page():
     flow.append(Paragraph("Thank You for Using NADI AI", styles["NadiTitle"]))
     flow.append(Spacer(1, 0.5 * cm))
     flow.append(Paragraph(
-        "We hope this report supports your hydrological analysis. NADI AI is a work in "
-        "progress, and every use helps us improve. Your feedback is genuinely valued.",
+        "We hope this report supports your hydrological analysis. "
+        "Your feedback is genuinely valued.",
         styles["NadiSubtitle"]))
     flow.append(Spacer(1, 1 * cm))
     flow.append(Paragraph(
