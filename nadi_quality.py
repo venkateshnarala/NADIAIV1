@@ -239,10 +239,11 @@ GRUBBS_BECK_DESCRIPTION = {
         "of annual maximum floods, its reliability depends on how well this "
         "assumption represents the observed data."
     ),
-    "formula": "z_i = (log10(Q_i) - mean(log10 Q)) / std(log10 Q) ; flagged if |z_i| > K_n",
-    "standard_values": "One-sided significance level alpha = 0.10 (10%), as recommended in Bulletin 17B",
-    "assumptions": "Annual maxima are assumed approximately log-normally distributed.",
+    "standard_values": (
+        "One-sided significance level alpha = 0.10 (10%), as recommended in Bulletin 17B"
+    ),
 }
+
 
 PETTITT_DESCRIPTION = {
     "title": "Pettitt Change-Point Test",
@@ -265,14 +266,9 @@ PETTITT_DESCRIPTION = {
         "significant, indicating that the characteristics of the annual "
         "maximum series have changed during the period of record."
     ),
-    "formula_lines": [
-        "U_t  =  sum ( i = 1 to t )  sum ( j = t+1 to n )   sgn(x_i - x_j)",
-        "sgn(x_i - x_j) =  +1  if x_i > x_j  ;   -1  if x_i < x_j  ;   0  if x_i = x_j",
-        "K  =  max | U_t |   over all t",
-    ],
     "standard_values": "Significance level alpha = 0.05",
-    "assumptions": "Detects only a single change point; series assumed otherwise independent.",
 }
+
 
 CUSUM_DESCRIPTION = {
     "title": "CUSUM (Cumulative Sum) Change-Point Analysis",
@@ -287,9 +283,4 @@ CUSUM_DESCRIPTION = {
         "Used as a qualitative cross-check alongside the Pettitt test to "
         "corroborate (or question) a detected change point."
     ),
-    "formula_lines": [
-        "S_t  =  sum ( i = 1 to t )  ( x_i - mean(x) )",
-    ],
-    "standard_values": "No formal critical value; interpreted visually / by maximum |S_t|",
-    "assumptions": "None required; purely descriptive/exploratory.",
 }
